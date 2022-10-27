@@ -1,5 +1,6 @@
 'use strict'
 
+const Config = require('../../../src/config')
 const id = require('../../../src/id')
 const SpanContext = require('../../../src/opentracing/span_context')
 
@@ -30,7 +31,7 @@ describe('TextMapPropagator', () => {
 
   beforeEach(() => {
     TextMapPropagator = require('../../../src/opentracing/propagation/text_map')
-    config = { experimental: { b3: false }, tagsHeaderMaxLength: 512 }
+    config = new Config({ tagsHeaderMaxLength: 512 })
     propagator = new TextMapPropagator(config)
     textMap = {
       'x-datadog-trace-id': '123',
@@ -194,7 +195,7 @@ describe('TextMapPropagator', () => {
         }
       })
 
-      config.experimental.b3 = true
+      config.tracePropagationStyle.inject.b3 = true
 
       propagator.inject(spanContext, carrier)
 
@@ -215,7 +216,7 @@ describe('TextMapPropagator', () => {
         }
       })
 
-      config.experimental.traceparent = true
+      config.tracePropagationStyle.inject.tracecontext = true
 
       propagator.inject(spanContext, carrier)
 
@@ -232,6 +233,38 @@ describe('TextMapPropagator', () => {
       propagator.inject(spanContext, carrier)
 
       expect(carrier).to.not.have.property('x-b3-traceid')
+    })
+
+    it('should skip injection of traceparent header without the feature flag', () => {
+      const carrier = {}
+      const spanContext = createContext({
+        traceId: id('0000000000000123'),
+        spanId: id('0000000000000456')
+      })
+
+      config.tracePropagationStyle.inject.tracecontext = false
+
+      propagator.inject(spanContext, carrier)
+
+      expect(carrier).to.not.have.property('traceparent')
+    })
+
+    it('should skip injection of datadog headers without the feature flag', () => {
+      const carrier = {}
+      const spanContext = createContext({
+        traceId: id('0000000000000123'),
+        spanId: id('0000000000000456')
+      })
+
+      config.tracePropagationStyle.inject.datadog = false
+
+      propagator.inject(spanContext, carrier)
+
+      expect(carrier).to.not.have.property('x-datadog-trace-id')
+      expect(carrier).to.not.have.property('x-datadog-parent-id')
+      expect(carrier).to.not.have.property('x-datadog-sampling-priority')
+      expect(carrier).to.not.have.property('x-datadog-origin')
+      expect(carrier).to.not.have.property('x-datadog-tags')
     })
   })
 
@@ -341,9 +374,17 @@ describe('TextMapPropagator', () => {
       }))
     })
 
+    it('should skip extraction of datadog headers without the feature flag', () => {
+      const carrier = textMap
+      config.tracePropagationStyle.extract.datadog = false
+
+      const spanContext = propagator.extract(carrier)
+      expect(spanContext).to.be.null
+    })
+
     describe('with B3 propagation as multiple headers', () => {
       beforeEach(() => {
-        config.experimental.b3 = true
+        config.tracePropagationStyle.extract.b3 = true
 
         delete textMap['x-datadog-trace-id']
         delete textMap['x-datadog-parent-id']
@@ -409,7 +450,7 @@ describe('TextMapPropagator', () => {
         textMap['x-b3-traceid'] = '0000000000000123'
         textMap['x-b3-spanid'] = '0000000000000456'
 
-        config.experimental.b3 = false
+        config.tracePropagationStyle.extract.b3 = false
 
         const carrier = textMap
         const spanContext = propagator.extract(carrier)
@@ -420,7 +461,7 @@ describe('TextMapPropagator', () => {
 
     describe('with B3 propagation as a single header', () => {
       beforeEach(() => {
-        config.experimental.b3 = true
+        config.tracePropagationStyle.extract['b3 single header'] = true
 
         delete textMap['x-datadog-trace-id']
         delete textMap['x-datadog-parent-id']
@@ -510,7 +551,7 @@ describe('TextMapPropagator', () => {
       it('should skip extraction without the feature flag', () => {
         textMap['b3'] = '0000000000000123-0000000000000456-1-0000000000000789'
 
-        config.experimental.b3 = false
+        config.tracePropagationStyle.extract['b3 single header'] = false
 
         const carrier = textMap
         const spanContext = propagator.extract(carrier)
@@ -527,7 +568,7 @@ describe('TextMapPropagator', () => {
 
       it('should skip extraction without the feature flag', () => {
         textMap['traceparent'] = '00-000000000000000000000000000004d2-000000000000162e-01'
-        config.experimental.traceparent = false
+        config.tracePropagationStyle.extract.tracecontext = false
 
         const carrier = textMap
         const spanContext = propagator.extract(carrier)
@@ -536,7 +577,7 @@ describe('TextMapPropagator', () => {
 
       it('should extract the header', () => {
         textMap['traceparent'] = '00-1111aaaa2222bbbb3333cccc4444dddd-5555eeee6666ffff-01'
-        config.experimental.traceparent = true
+        config.tracePropagationStyle.extract.tracecontext = true
 
         const carrier = textMap
         const spanContext = propagator.extract(carrier)

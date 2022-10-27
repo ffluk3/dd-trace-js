@@ -165,6 +165,7 @@ class Config {
       process.env.DD_TRACE_CLIENT_IP_HEADER,
       null
     )
+    // TODO: Remove the experimental env vars as a major?
     const DD_TRACE_B3_ENABLED = coalesce(
       options.experimental && options.experimental.b3,
       process.env.DD_TRACE_EXPERIMENTAL_B3_ENABLED,
@@ -175,6 +176,36 @@ class Config {
       process.env.DD_TRACE_EXPERIMENTAL_TRACEPARENT_ENABLED,
       false
     )
+    const DD_TRACE_PROPAGATION_STYLE_INJECT = coalesce(
+      options.tracePropagationStyle && options.tracePropagationStyle.inject,
+      process.env.DD_TRACE_PROPAGATION_STYLE_INJECT,
+      // TODO: change this to traceparent,datadog
+      // This can't be done as a semver-minor until tracestate support also exists
+      'datadog'
+    ).split(',').reduce((m, v) => {
+      m[v.toLowerCase()] = true
+      return m
+    }, {
+      b3: isTrue(DD_TRACE_B3_ENABLED),
+      'b3 single header': isTrue(DD_TRACE_B3_ENABLED),
+      tracecontext: isTrue(DD_TRACE_TRACEPARENT_ENABLED),
+      datadog: false
+    })
+    const DD_TRACE_PROPAGATION_STYLE_EXTRACT = coalesce(
+      options.tracePropagationStyle && options.tracePropagationStyle.extract,
+      process.env.DD_TRACE_PROPAGATION_STYLE_EXTRACT,
+      // TODO: change this to traceparent,datadog
+      // This can't be done as a semver-minor until tracestate support also exists
+      'datadog'
+    ).split(',').reduce((m, v) => {
+      m[v.toLowerCase()] = true
+      return m
+    }, {
+      b3: isTrue(DD_TRACE_B3_ENABLED),
+      'b3 single header': isTrue(DD_TRACE_B3_ENABLED),
+      tracecontext: isTrue(DD_TRACE_TRACEPARENT_ENABLED),
+      datadog: false
+    })
     const DD_TRACE_RUNTIME_ID_ENABLED = coalesce(
       options.experimental && options.experimental.runtimeId,
       process.env.DD_TRACE_EXPERIMENTAL_RUNTIME_ID_ENABLED,
@@ -334,9 +365,11 @@ ken|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)
       port: String(coalesce(dogstatsd.port, process.env.DD_DOGSTATSD_PORT, 8125))
     }
     this.runtimeMetrics = isTrue(DD_RUNTIME_METRICS_ENABLED)
+    this.tracePropagationStyle = {
+      inject: DD_TRACE_PROPAGATION_STYLE_INJECT,
+      extract: DD_TRACE_PROPAGATION_STYLE_EXTRACT
+    }
     this.experimental = {
-      b3: isTrue(DD_TRACE_B3_ENABLED),
-      traceparent: isTrue(DD_TRACE_TRACEPARENT_ENABLED),
       runtimeId: isTrue(DD_TRACE_RUNTIME_ID_ENABLED),
       exporter: DD_TRACE_EXPORTER,
       enableGetRumData: isTrue(DD_TRACE_GET_RUM_DATA_ENABLED)

@@ -38,15 +38,10 @@ class TextMapPropagator {
   }
 
   inject (spanContext, carrier) {
-    carrier[traceKey] = spanContext.toTraceId()
-    carrier[spanKey] = spanContext.toSpanId()
-
-    this._injectOrigin(spanContext, carrier)
-    this._injectSamplingPriority(spanContext, carrier)
     this._injectBaggageItems(spanContext, carrier)
+    this._injectDatadog(spanContext, carrier)
     this._injectB3(spanContext, carrier)
     this._injectTraceparent(spanContext, carrier)
-    this._injectTags(spanContext, carrier)
 
     log.debug(() => `Inject into carrier: ${JSON.stringify(pick(carrier, logKeys))}.`)
   }
@@ -59,6 +54,17 @@ class TextMapPropagator {
     log.debug(() => `Extract from carrier: ${JSON.stringify(pick(carrier, logKeys))}.`)
 
     return spanContext
+  }
+
+  _injectDatadog (spanContext, carrier) {
+    if (!this._config.tracePropagationStyle.inject.datadog) return
+
+    carrier[traceKey] = spanContext.toTraceId()
+    carrier[spanKey] = spanContext.toSpanId()
+
+    this._injectOrigin(spanContext, carrier)
+    this._injectSamplingPriority(spanContext, carrier)
+    this._injectTags(spanContext, carrier)
   }
 
   _injectOrigin (spanContext, carrier) {
@@ -113,7 +119,8 @@ class TextMapPropagator {
   }
 
   _injectB3 (spanContext, carrier) {
-    if (!this._config.experimental.b3) return
+    const { inject } = this._config.tracePropagationStyle
+    if (!inject.b3 && !inject['b3 single header']) return
 
     carrier[b3TraceKey] = spanContext._traceId.toString(16)
     carrier[b3SpanKey] = spanContext._spanId.toString(16)
@@ -129,7 +136,7 @@ class TextMapPropagator {
   }
 
   _injectTraceparent (spanContext, carrier) {
-    if (!this._config.experimental.traceparent) return
+    if (!this._config.tracePropagationStyle.inject.tracecontext) return
 
     const sampling = spanContext._sampling.priority >= AUTO_KEEP ? '01' : '00'
     const traceId = spanContext._traceId.toString(16).padStart(32, '0')
@@ -138,6 +145,9 @@ class TextMapPropagator {
   }
 
   _extractSpanContext (carrier) {
+    // TODO: Traceparent needs to be prioritized, but this is a breaking change
+    // until we support tracestate headers too, otherwise we would lose origin
+    // and tags header data.
     return this._extractDatadogContext(carrier) ||
       this._extractTraceparentContext(carrier) ||
       this._extractB3Context(carrier) ||
@@ -145,6 +155,8 @@ class TextMapPropagator {
   }
 
   _extractDatadogContext (carrier) {
+    if (!this._config.tracePropagationStyle.extract.datadog) return null
+
     const spanContext = this._extractGenericContext(carrier, traceKey, spanKey, 10)
 
     if (spanContext) {
@@ -158,7 +170,8 @@ class TextMapPropagator {
   }
 
   _extractB3Context (carrier) {
-    if (!this._config.experimental.b3) return null
+    const { extract } = this._config.tracePropagationStyle
+    if (!extract.b3 && !extract['b3 single header']) return null
 
     const b3 = this._extractB3Headers(carrier)
     const debug = b3[b3FlagsKey] === '1'
@@ -196,7 +209,7 @@ class TextMapPropagator {
   }
 
   _extractTraceparentContext (carrier) {
-    if (!this._config.experimental.traceparent) return null
+    if (!this._config.tracePropagationStyle.extract.tracecontext) return null
 
     const headerValue = carrier[traceparentKey]
     if (!headerValue) {
@@ -204,11 +217,14 @@ class TextMapPropagator {
     }
     const matches = headerValue.match(traceparentExpr)
     if (matches.length) {
-      return new DatadogSpanContext({
+      const spanContext = new DatadogSpanContext({
         traceId: id(matches[2], 16),
         spanId: id(matches[3], 16),
         sampling: { priority: matches[4] === '01' ? 1 : 0 }
       })
+
+      this._extractBaggageItems(carrier, spanContext)
+      return spanContext
     }
     return null
   }
@@ -225,7 +241,9 @@ class TextMapPropagator {
   }
 
   _extractB3Headers (carrier) {
-    if (b3HeaderExpr.test(carrier[b3HeaderKey])) {
+    const { extract } = this._config.tracePropagationStyle
+    const single = extract['b3 single header']
+    if (single && b3HeaderExpr.test(carrier[b3HeaderKey])) {
       return this._extractB3SingleHeader(carrier)
     } else {
       return this._extractB3MultipleHeaders(carrier)
