@@ -57,7 +57,7 @@ class TextMapPropagator {
   }
 
   _injectDatadog (spanContext, carrier) {
-    if (!this._config.tracePropagationStyle.inject.datadog) return
+    if (!this._hasPropagationStyle('inject', 'datadog')) return
 
     carrier[traceKey] = spanContext.toTraceId()
     carrier[spanKey] = spanContext.toSpanId()
@@ -119,8 +119,9 @@ class TextMapPropagator {
   }
 
   _injectB3 (spanContext, carrier) {
-    const { inject } = this._config.tracePropagationStyle
-    if (!inject.b3 && !inject['b3 single header']) return
+    const hasB3 = this._hasPropagationStyle('inject', 'b3')
+    const hasB3SingleHeader = this._hasPropagationStyle('inject', 'b3 single header')
+    if (!hasB3 && !hasB3SingleHeader) return null
 
     carrier[b3TraceKey] = spanContext._traceId.toString(16)
     carrier[b3SpanKey] = spanContext._spanId.toString(16)
@@ -136,12 +137,16 @@ class TextMapPropagator {
   }
 
   _injectTraceparent (spanContext, carrier) {
-    if (!this._config.tracePropagationStyle.inject.tracecontext) return
+    if (!this._hasPropagationStyle('inject', 'tracecontext')) return
 
     const sampling = spanContext._sampling.priority >= AUTO_KEEP ? '01' : '00'
     const traceId = spanContext._traceId.toString(16).padStart(32, '0')
     const spanId = spanContext._spanId.toString(16).padStart(16, '0')
     carrier[traceparentKey] = `01-${traceId}-${spanId}-${sampling}`
+  }
+
+  _hasPropagationStyle (mode, name) {
+    return this._config.tracePropagationStyle[mode].includes(name)
   }
 
   _extractSpanContext (carrier) {
@@ -155,7 +160,7 @@ class TextMapPropagator {
   }
 
   _extractDatadogContext (carrier) {
-    if (!this._config.tracePropagationStyle.extract.datadog) return null
+    if (!this._hasPropagationStyle('extract', 'datadog')) return null
 
     const spanContext = this._extractGenericContext(carrier, traceKey, spanKey, 10)
 
@@ -170,8 +175,9 @@ class TextMapPropagator {
   }
 
   _extractB3Context (carrier) {
-    const { extract } = this._config.tracePropagationStyle
-    if (!extract.b3 && !extract['b3 single header']) return null
+    const hasB3 = this._hasPropagationStyle('extract', 'b3')
+    const hasB3SingleHeader = this._hasPropagationStyle('extract', 'b3 single header')
+    if (!hasB3 && !hasB3SingleHeader) return null
 
     const b3 = this._extractB3Headers(carrier)
     const debug = b3[b3FlagsKey] === '1'
@@ -209,7 +215,7 @@ class TextMapPropagator {
   }
 
   _extractTraceparentContext (carrier) {
-    if (!this._config.tracePropagationStyle.extract.tracecontext) return null
+    if (!this._hasPropagationStyle('extract', 'tracecontext')) return null
 
     const headerValue = carrier[traceparentKey]
     if (!headerValue) {
@@ -241,8 +247,7 @@ class TextMapPropagator {
   }
 
   _extractB3Headers (carrier) {
-    const { extract } = this._config.tracePropagationStyle
-    const single = extract['b3 single header']
+    const single = this._hasPropagationStyle('extract', 'b3 single header')
     if (single && b3HeaderExpr.test(carrier[b3HeaderKey])) {
       return this._extractB3SingleHeader(carrier)
     } else {

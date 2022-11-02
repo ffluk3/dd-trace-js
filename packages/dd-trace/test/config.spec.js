@@ -77,12 +77,8 @@ describe('Config', () => {
     expect(config).to.have.property('reportHostname', false)
     expect(config).to.have.property('scope', undefined)
     expect(config).to.have.property('logLevel', 'debug')
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.b3', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.tracecontext', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.datadog', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.b3', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.tracecontext', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.datadog', true)
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.inject', ['datadog'])
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.extract', ['datadog'])
     expect(config).to.have.nested.property('experimental.runtimeId', false)
     expect(config).to.have.nested.property('experimental.exporter', undefined)
     expect(config).to.have.nested.property('experimental.enableGetRumData', false)
@@ -206,12 +202,8 @@ describe('Config', () => {
         { sampleRate: 0.1 }
       ]
     })
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.b3', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.tracecontext', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.datadog', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.b3', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.tracecontext', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.datadog', false)
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.inject', ['b3', 'tracecontext'])
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.extract', ['b3', 'tracecontext'])
     expect(config).to.have.nested.property('experimental.runtimeId', true)
     expect(config).to.have.nested.property('experimental.exporter', 'log')
     expect(config).to.have.nested.property('experimental.enableGetRumData', true)
@@ -349,12 +341,18 @@ describe('Config', () => {
     expect(config.tags).to.have.property('foo', 'bar')
     expect(config.tags).to.have.property('runtime-id')
     expect(config.tags['runtime-id']).to.match(/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.b3', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.tracecontext', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.datadog', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.b3', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.tracecontext', true)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.datadog', true)
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.inject', [
+      'datadog',
+      'tracecontext',
+      'b3',
+      'b3 single header'
+    ])
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.extract', [
+      'datadog',
+      'tracecontext',
+      'b3',
+      'b3 single header'
+    ])
     expect(config).to.have.nested.property('experimental.runtimeId', true)
     expect(config).to.have.nested.property('experimental.exporter', 'log')
     expect(config).to.have.nested.property('experimental.enableGetRumData', true)
@@ -514,12 +512,8 @@ describe('Config', () => {
     expect(config).to.have.property('env', 'development')
     expect(config.tags).to.include({ foo: 'foo', baz: 'qux' })
     expect(config.tags).to.include({ service: 'test', version: '1.0.0', env: 'development' })
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.b3', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.tracecontext', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.inject.datadog', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.b3', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.tracecontext', false)
-    expect(config).to.have.nested.property('tracePropagationStyle.extract.datadog', false)
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.inject', [])
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.extract', [])
     expect(config).to.have.nested.property('experimental.runtimeId', false)
     expect(config).to.have.nested.property('experimental.exporter', 'agent')
     expect(config).to.have.nested.property('experimental.enableGetRumData', false)

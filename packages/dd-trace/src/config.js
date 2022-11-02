@@ -44,6 +44,14 @@ function remapify (input, mappings) {
   return output
 }
 
+function propagationStyle(option, envVar, defaultValue) {
+  let result = coalesce(option, envVar, defaultValue)
+  if (!Array.isArray(result)) {
+    result = result.split(',')
+  }
+  return result.filter(v => v !== '')
+}
+
 class Config {
   constructor (options) {
     options = options || {}
@@ -176,36 +184,35 @@ class Config {
       process.env.DD_TRACE_EXPERIMENTAL_TRACEPARENT_ENABLED,
       false
     )
-    const DD_TRACE_PROPAGATION_STYLE_INJECT = coalesce(
+    const DD_TRACE_PROPAGATION_STYLE_INJECT = propagationStyle(
       options.tracePropagationStyle && options.tracePropagationStyle.inject,
       process.env.DD_TRACE_PROPAGATION_STYLE_INJECT,
       // TODO: change this to traceparent,datadog
       // This can't be done as a semver-minor until tracestate support also exists
       'datadog'
-    ).split(',').reduce((m, v) => {
-      m[v.toLowerCase()] = true
-      return m
-    }, {
-      b3: isTrue(DD_TRACE_B3_ENABLED),
-      'b3 single header': isTrue(DD_TRACE_B3_ENABLED),
-      tracecontext: isTrue(DD_TRACE_TRACEPARENT_ENABLED),
-      datadog: false
-    })
-    const DD_TRACE_PROPAGATION_STYLE_EXTRACT = coalesce(
+    )
+    const DD_TRACE_PROPAGATION_STYLE_EXTRACT = propagationStyle(
       options.tracePropagationStyle && options.tracePropagationStyle.extract,
       process.env.DD_TRACE_PROPAGATION_STYLE_EXTRACT,
       // TODO: change this to traceparent,datadog
       // This can't be done as a semver-minor until tracestate support also exists
       'datadog'
-    ).split(',').reduce((m, v) => {
-      m[v.toLowerCase()] = true
-      return m
-    }, {
-      b3: isTrue(DD_TRACE_B3_ENABLED),
-      'b3 single header': isTrue(DD_TRACE_B3_ENABLED),
-      tracecontext: isTrue(DD_TRACE_TRACEPARENT_ENABLED),
-      datadog: false
-    })
+    )
+    const propagationStyleLists = [
+      DD_TRACE_PROPAGATION_STYLE_INJECT,
+      DD_TRACE_PROPAGATION_STYLE_EXTRACT
+    ]
+    if (isTrue(DD_TRACE_TRACEPARENT_ENABLED)) {
+      for (const list of propagationStyleLists) {
+        list.push('tracecontext')
+      }
+    }
+    if (isTrue(DD_TRACE_B3_ENABLED)) {
+      for (const list of propagationStyleLists) {
+        list.push('b3')
+        list.push('b3 single header')
+      }
+    }
     const DD_TRACE_RUNTIME_ID_ENABLED = coalesce(
       options.experimental && options.experimental.runtimeId,
       process.env.DD_TRACE_EXPERIMENTAL_RUNTIME_ID_ENABLED,
