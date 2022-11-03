@@ -150,18 +150,30 @@ class TextMapPropagator {
   }
 
   _extractSpanContext (carrier) {
-    // TODO: Traceparent needs to be prioritized, but this is a breaking change
-    // until we support tracestate headers too, otherwise we would lose origin
-    // and tags header data.
-    return this._extractDatadogContext(carrier) ||
-      this._extractTraceparentContext(carrier) ||
-      this._extractB3Context(carrier) ||
-      this._extractSqsdContext(carrier)
+    for (const extractor of this._config.tracePropagationStyle.extract) {
+      let spanContext
+      switch (extractor) {
+        case 'datadog':
+          spanContext = this._extractDatadogContext(carrier)
+          break
+        case 'tracecontext':
+          spanContext = this._extractTraceparentContext(carrier)
+          break
+        case 'b3':
+        case 'b3 single header':
+          spanContext = this._extractB3Context(carrier)
+          break
+      }
+
+      if (spanContext !== null) {
+        return spanContext
+      }
+    }
+
+    return this._extractSqsdContext(carrier)
   }
 
   _extractDatadogContext (carrier) {
-    if (!this._hasPropagationStyle('extract', 'datadog')) return null
-
     const spanContext = this._extractGenericContext(carrier, traceKey, spanKey, 10)
 
     if (spanContext) {
@@ -175,11 +187,9 @@ class TextMapPropagator {
   }
 
   _extractB3Context (carrier) {
-    const hasB3 = this._hasPropagationStyle('extract', 'b3')
-    const hasB3SingleHeader = this._hasPropagationStyle('extract', 'b3 single header')
-    if (!hasB3 && !hasB3SingleHeader) return null
-
     const b3 = this._extractB3Headers(carrier)
+    if (!b3) return null
+
     const debug = b3[b3FlagsKey] === '1'
     const priority = this._getPriority(b3[b3SampledKey], debug)
     const spanContext = this._extractGenericContext(b3, b3TraceKey, b3SpanKey, 16)
@@ -215,8 +225,6 @@ class TextMapPropagator {
   }
 
   _extractTraceparentContext (carrier) {
-    if (!this._hasPropagationStyle('extract', 'tracecontext')) return null
-
     const headerValue = carrier[traceparentKey]
     if (!headerValue) {
       return null
@@ -256,26 +264,33 @@ class TextMapPropagator {
   }
 
   _extractB3MultipleHeaders (carrier) {
+    let empty = true
     const b3 = {}
 
     if (b3TraceExpr.test(carrier[b3TraceKey]) && b3SpanExpr.test(carrier[b3SpanKey])) {
       b3[b3TraceKey] = carrier[b3TraceKey]
       b3[b3SpanKey] = carrier[b3SpanKey]
+      empty = false
     }
 
     if (carrier[b3SampledKey]) {
       b3[b3SampledKey] = carrier[b3SampledKey]
+      empty = false
     }
 
     if (carrier[b3FlagsKey]) {
       b3[b3FlagsKey] = carrier[b3FlagsKey]
+      empty = false
     }
 
-    return b3
+    return empty ? null : b3
   }
 
   _extractB3SingleHeader (carrier) {
-    const parts = carrier[b3HeaderKey].split('-')
+    const header = carrier[b3HeaderKey]
+    if (!header) return null
+
+    const parts = header.split('-')
 
     if (parts[0] === 'd') {
       return {

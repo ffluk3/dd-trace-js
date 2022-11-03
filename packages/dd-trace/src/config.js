@@ -184,6 +184,9 @@ class Config {
       process.env.DD_TRACE_EXPERIMENTAL_TRACEPARENT_ENABLED,
       false
     )
+    // TODO: Traceparent needs to be prioritized, but this is a breaking change
+    // until we support tracestate headers too, otherwise we would lose origin
+    // and tags header data.
     const DD_TRACE_PROPAGATION_STYLE_INJECT = propagationStyle(
       options.tracePropagationStyle && options.tracePropagationStyle.inject,
       process.env.DD_TRACE_PROPAGATION_STYLE_INJECT,
