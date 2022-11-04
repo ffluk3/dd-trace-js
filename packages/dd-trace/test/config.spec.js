@@ -254,6 +254,17 @@ describe('Config', () => {
     expect(config).to.have.property('env', 'test')
   })
 
+  it('should initialize from environment variables with inject/extract taking precedence', () => {
+    process.env.DD_TRACE_PROPAGATION_STYLE = 'datadog'
+    process.env.DD_TRACE_PROPAGATION_STYLE_INJECT = 'tracecontext'
+    process.env.DD_TRACE_PROPAGATION_STYLE_EXTRACT = 'tracecontext'
+
+    const config = new Config()
+
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.inject', ['tracecontext'])
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.extract', ['tracecontext'])
+  })
+
   it('should initialize from the options', () => {
     const logger = {}
     const tags = {
@@ -399,6 +410,15 @@ describe('Config', () => {
     expect(config).to.have.property('flushInterval', 5000)
     expect(config).to.have.property('flushMinSpans', 500)
     expect(config).to.have.property('plugins', false)
+  })
+
+  it('should initialize from the options with simplified trace propagation style', () => {
+    const config = new Config({
+      tracePropagationStyle: 'datadog'
+    })
+
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.inject', ['datadog'])
+    expect(config).to.have.nested.deep.property('tracePropagationStyle.extract', ['datadog'])
   })
 
   it('should give priority to the common agent environment variable', () => {

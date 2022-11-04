@@ -44,8 +44,11 @@ function remapify (input, mappings) {
   return output
 }
 
-function propagationStyle (option, envVar, defaultValue) {
-  const result = coalesce(option, envVar, defaultValue)
+function propagationStyle (key, option, defaultValue) {
+  const envKey = `DD_TRACE_PROPAGATION_STYLE_${key.toUpperCase()}`
+  const envVar = process.env[envKey] || process.env.DD_TRACE_PROPAGATION_STYLE
+  const opt = typeof option === 'object' ? option[key] : option
+  const result = coalesce(opt, envVar, defaultValue)
   if (Array.isArray(result)) return result
 
   return result.split(',')
@@ -185,6 +188,8 @@ class Config {
       process.env.DD_TRACE_EXPERIMENTAL_TRACEPARENT_ENABLED,
       false
     )
+    // TODO: change this to traceparent,datadog
+    // This can't be done as a semver-minor until tracestate support also exists
     const defaultPropagationStyle = ['datadog']
     if (isTrue(DD_TRACE_TRACEPARENT_ENABLED)) {
       defaultPropagationStyle.push('tracecontext')
@@ -197,17 +202,13 @@ class Config {
     // until we support tracestate headers too, otherwise we would lose origin
     // and tags header data.
     const DD_TRACE_PROPAGATION_STYLE_INJECT = propagationStyle(
-      options.tracePropagationStyle && options.tracePropagationStyle.inject,
-      process.env.DD_TRACE_PROPAGATION_STYLE_INJECT,
-      // TODO: change this to traceparent,datadog
-      // This can't be done as a semver-minor until tracestate support also exists
+      'inject',
+      options.tracePropagationStyle,
       defaultPropagationStyle
     )
     const DD_TRACE_PROPAGATION_STYLE_EXTRACT = propagationStyle(
-      options.tracePropagationStyle && options.tracePropagationStyle.extract,
-      process.env.DD_TRACE_PROPAGATION_STYLE_EXTRACT,
-      // TODO: change this to traceparent,datadog
-      // This can't be done as a semver-minor until tracestate support also exists
+      'extract',
+      options.tracePropagationStyle,
       defaultPropagationStyle
     )
     const DD_TRACE_RUNTIME_ID_ENABLED = coalesce(
