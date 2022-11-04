@@ -185,6 +185,14 @@ class Config {
       process.env.DD_TRACE_EXPERIMENTAL_TRACEPARENT_ENABLED,
       false
     )
+    const defaultPropagationStyle = ['datadog']
+    if (isTrue(DD_TRACE_TRACEPARENT_ENABLED)) {
+      defaultPropagationStyle.push('tracecontext')
+    }
+    if (isTrue(DD_TRACE_B3_ENABLED)) {
+      defaultPropagationStyle.push('b3')
+      defaultPropagationStyle.push('b3 single header')
+    }
     // TODO: Traceparent needs to be prioritized, but this is a breaking change
     // until we support tracestate headers too, otherwise we would lose origin
     // and tags header data.
@@ -193,30 +201,15 @@ class Config {
       process.env.DD_TRACE_PROPAGATION_STYLE_INJECT,
       // TODO: change this to traceparent,datadog
       // This can't be done as a semver-minor until tracestate support also exists
-      'datadog'
+      defaultPropagationStyle
     )
     const DD_TRACE_PROPAGATION_STYLE_EXTRACT = propagationStyle(
       options.tracePropagationStyle && options.tracePropagationStyle.extract,
       process.env.DD_TRACE_PROPAGATION_STYLE_EXTRACT,
       // TODO: change this to traceparent,datadog
       // This can't be done as a semver-minor until tracestate support also exists
-      'datadog'
+      defaultPropagationStyle
     )
-    const propagationStyleLists = [
-      DD_TRACE_PROPAGATION_STYLE_INJECT,
-      DD_TRACE_PROPAGATION_STYLE_EXTRACT
-    ]
-    if (isTrue(DD_TRACE_TRACEPARENT_ENABLED)) {
-      for (const list of propagationStyleLists) {
-        list.push('tracecontext')
-      }
-    }
-    if (isTrue(DD_TRACE_B3_ENABLED)) {
-      for (const list of propagationStyleLists) {
-        list.push('b3')
-        list.push('b3 single header')
-      }
-    }
     const DD_TRACE_RUNTIME_ID_ENABLED = coalesce(
       options.experimental && options.experimental.runtimeId,
       process.env.DD_TRACE_EXPERIMENTAL_RUNTIME_ID_ENABLED,
