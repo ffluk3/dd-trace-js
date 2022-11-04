@@ -382,6 +382,27 @@ describe('TextMapPropagator', () => {
       expect(spanContext).to.be.null
     })
 
+    it('should support prioritization', () => {
+      config.tracePropagationStyle.extract = ['tracecontext', 'datadog']
+
+      // No traceparent yet, will skip ahead to datadog
+      const second = propagator.extract(textMap)
+
+      expect(second.toTraceId()).to.equal(textMap['x-datadog-trace-id'])
+      expect(second.toSpanId()).to.equal(textMap['x-datadog-parent-id'])
+
+      // Add a traceparent header and it will prioritize it
+      const traceId = '1111aaaa2222bbbb3333cccc4444dddd'
+      const spanId = '5555eeee6666ffff'
+
+      textMap['traceparent'] = `00-${traceId}-${spanId}-01`
+
+      const first = propagator.extract(textMap)
+
+      expect(first._traceId.toString(16)).to.equal(traceId)
+      expect(first._spanId.toString(16)).to.equal(spanId)
+    })
+
     describe('with B3 propagation as multiple headers', () => {
       beforeEach(() => {
         config.tracePropagationStyle.extract = ['b3']
