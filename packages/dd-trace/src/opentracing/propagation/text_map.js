@@ -159,9 +159,12 @@ class TextMapPropagator {
         case 'tracecontext':
           spanContext = this._extractTraceparentContext(carrier)
           break
-        case 'b3':
-        case 'b3 single header':
-          spanContext = this._extractB3Context(carrier)
+        case 'b3': // TODO: should match "b3 single header" in next major
+        case 'b3multi':
+          spanContext = this._extractB3MultiContext(carrier)
+          break
+        case 'b3 single header': // TODO: delete in major after singular "b3"
+          spanContext = this._extractB3SingleContext(carrier)
           break
       }
 
@@ -186,10 +189,20 @@ class TextMapPropagator {
     return spanContext
   }
 
-  _extractB3Context (carrier) {
-    const b3 = this._extractB3Headers(carrier)
+  _extractB3MultiContext (carrier) {
+    const b3 = this._extractB3MultipleHeaders(carrier)
     if (!b3) return null
+    return this._extractB3Context(b3)
+  }
 
+  _extractB3SingleContext (carrier) {
+    if (!b3HeaderExpr.test(carrier[b3HeaderKey])) return null
+    const b3 = this._extractB3SingleHeader(carrier)
+    if (!b3) return null
+    return this._extractB3Context(b3)
+  }
+
+  _extractB3Context (b3) {
     const debug = b3[b3FlagsKey] === '1'
     const priority = this._getPriority(b3[b3SampledKey], debug)
     const spanContext = this._extractGenericContext(b3, b3TraceKey, b3SpanKey, 16)
@@ -252,15 +265,6 @@ class TextMapPropagator {
     }
 
     return null
-  }
-
-  _extractB3Headers (carrier) {
-    const single = this._hasPropagationStyle('extract', 'b3 single header')
-    if (single && b3HeaderExpr.test(carrier[b3HeaderKey])) {
-      return this._extractB3SingleHeader(carrier)
-    } else {
-      return this._extractB3MultipleHeaders(carrier)
-    }
   }
 
   _extractB3MultipleHeaders (carrier) {

@@ -421,6 +421,30 @@ describe('Config', () => {
     expect(config).to.have.nested.deep.property('tracePropagationStyle.extract', ['datadog'])
   })
 
+  it('should warn if mixing shared and extract propagation style env vars', () => {
+    process.env.DD_TRACE_PROPAGATION_STYLE_EXTRACT = 'datadog'
+    process.env.DD_TRACE_PROPAGATION_STYLE = 'datadog'
+
+    // eslint-disable-next-line no-new
+    new Config()
+
+    expect(log.warn).to.have.been.calledWith('Use either the DD_TRACE_PROPAGATION_STYLE ' +
+      'environment variable or separate DD_TRACE_PROPAGATION_STYLE_INJECT and ' +
+      'DD_TRACE_PROPAGATION_STYLE_EXTRACT environment variables')
+  })
+
+  it('should warn if mixing shared and inject propagation style env vars', () => {
+    process.env.DD_TRACE_PROPAGATION_STYLE_INJECT = 'datadog'
+    process.env.DD_TRACE_PROPAGATION_STYLE = 'datadog'
+
+    // eslint-disable-next-line no-new
+    new Config()
+
+    expect(log.warn).to.have.been.calledWith('Use either the DD_TRACE_PROPAGATION_STYLE ' +
+      'environment variable or separate DD_TRACE_PROPAGATION_STYLE_INJECT and ' +
+      'DD_TRACE_PROPAGATION_STYLE_EXTRACT environment variables')
+  })
+
   it('should give priority to the common agent environment variable', () => {
     process.env.DD_TRACE_AGENT_HOSTNAME = 'trace-agent'
     process.env.DD_AGENT_HOST = 'agent'

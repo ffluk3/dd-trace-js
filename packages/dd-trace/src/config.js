@@ -189,7 +189,8 @@ class Config {
       false
     )
     // TODO: change this to traceparent,datadog
-    // This can't be done as a semver-minor until tracestate support also exists
+    // Traceparent should be prioritized over datadog headers, but this is a breaking change until
+    // we support tracestate headers too, otherwise we would lose origin and tags header data.
     const defaultPropagationStyle = ['datadog']
     if (isTrue(DD_TRACE_TRACEPARENT_ENABLED)) {
       defaultPropagationStyle.push('tracecontext')
@@ -198,9 +199,16 @@ class Config {
       defaultPropagationStyle.push('b3')
       defaultPropagationStyle.push('b3 single header')
     }
-    // TODO: Traceparent needs to be prioritized, but this is a breaking change
-    // until we support tracestate headers too, otherwise we would lose origin
-    // and tags header data.
+    if (process.env.DD_TRACE_PROPAGATION_STYLE && (
+      process.env.DD_TRACE_PROPAGATION_STYLE_INJECT ||
+      process.env.DD_TRACE_PROPAGATION_STYLE_EXTRACT
+    )) {
+      log.warn(
+        'Use either the DD_TRACE_PROPAGATION_STYLE environment variable or separate ' +
+        'DD_TRACE_PROPAGATION_STYLE_INJECT and DD_TRACE_PROPAGATION_STYLE_EXTRACT ' +
+        'environment variables'
+      )
+    }
     const DD_TRACE_PROPAGATION_STYLE_INJECT = propagationStyle(
       'inject',
       options.tracePropagationStyle,
