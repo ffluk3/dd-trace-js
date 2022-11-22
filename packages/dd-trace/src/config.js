@@ -45,15 +45,18 @@ function remapify (input, mappings) {
 }
 
 function propagationStyle (key, option, defaultValue) {
-  const envKey = `DD_TRACE_PROPAGATION_STYLE_${key.toUpperCase()}`
-  const envVar = process.env[envKey] || process.env.DD_TRACE_PROPAGATION_STYLE
   const opt = typeof option === 'object' ? option[key] : option
-  const result = coalesce(opt, envVar, defaultValue)
-  if (Array.isArray(result)) return result
+  if (typeof opt !== 'undefined') return opt
 
-  return result.split(',')
-    .filter(v => v !== '')
-    .map(v => v.trim())
+  const envKey = `DD_TRACE_PROPAGATION_STYLE_${key.toUpperCase()}`
+  const envVar = coalesce(process.env[envKey], process.env.DD_TRACE_PROPAGATION_STYLE)
+  if (typeof envVar !== 'undefined') {
+    return envVar.split(',')
+      .filter(v => v !== '')
+      .map(v => v.trim())
+  }
+
+  return defaultValue
 }
 
 class Config {

@@ -215,6 +215,21 @@ export declare interface SpanSamplingRule {
 }
 
 /**
+ * Selection and priority order of context propagation injection and extraction mechanisms.
+ */
+export declare interface PropagationStyle {
+  /**
+   * Selection of context propagation injection mechanisms.
+   */
+  inject: string[],
+
+  /**
+   * Selection and priority order of context propagation extraction mechanisms.
+   */
+  extract: string[]
+}
+
+/**
  * List of options available to the tracer.
  */
 export declare interface TracerOptions {
@@ -500,6 +515,11 @@ export declare interface TracerOptions {
      */
     obfuscatorValueRegex?: string
   };
+
+  /**
+   * The selection and priority order of context propagation injection and extraction mechanisms.
+   */
+  propagationStyle?: string[] | PropagationStyle
 }
 
 /**
