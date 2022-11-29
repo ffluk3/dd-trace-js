@@ -47,7 +47,14 @@ function wrapEmit (emit) {
 
       const asyncResource = new AsyncResource('bound-anonymous-fn')
       return asyncResource.runInAsyncScope(() => {
-        startServerCh.publish({ req, res })
+        const abortController = new AbortController()
+
+        startServerCh.publish({ req, res, abortController })
+
+        if (abortController.signal.aborted) {
+          // TODO: what if res.end is called twice ?
+          return res.end()
+        }
 
         try {
           return emit.apply(this, arguments)
